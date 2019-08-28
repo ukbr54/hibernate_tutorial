@@ -14,6 +14,8 @@ import java.util.stream.Collectors;
 /**
  * Created by Ujjwal Gupta on Aug,2019
  */
+
+//Baeldung
 public class JpaEntityManagerFactory {
 
     private final String DB_URL = "jdbc:mysql://localhost:3306/test_db";
