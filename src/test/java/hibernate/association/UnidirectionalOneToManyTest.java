@@ -16,9 +16,10 @@ import java.util.List;
 
 /**
  * @JoinColumn  annotation helps Hibernate to figure out that there is a post_id Foreign Key column in the post_comment table that defines
- * this association.
+ * this association. NOTE: If haven't specific the @JoinColumn then  hibernate will create an extra table to store this information.
  *
- *
+ *  Based on insert logic - generating 4 insert query (1 for post & 3 for post_comment) and 3 update query to update the foreign key
+ *  to delete also - taking 1 query for update the foreign key and 1 query for delete
  */
 
 public class UnidirectionalOneToManyTest extends AbstractTest {
@@ -65,7 +66,7 @@ public class UnidirectionalOneToManyTest extends AbstractTest {
         private String title;
 
         @OneToMany(cascade = CascadeType.ALL,orphanRemoval = true)
-        @JoinColumn(name = "post_id")
+        @JoinColumn(name = "post_id",nullable = false)
         private List<PostComment> comments = new ArrayList<>();
 
         public Post(String title) {
