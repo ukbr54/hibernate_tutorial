@@ -14,6 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import util.provider.DataSourceProvider;
 import util.provider.Database;
+import util.transaction.JPATransactionFunction;
 import util.transaction.JPATransactionVoidFunction;
 import util.transaction.VoidCallable;
 
@@ -209,6 +210,46 @@ public abstract class AbstractTest {
                 entityManager.close();
             }
         }
+    }
+
+    protected <T> T doInJPA(JPATransactionFunction<T> function) {
+        T result = null;
+        EntityManager entityManager = null;
+        EntityTransaction txn = null;
+        try {
+            entityManager = entityManagerFactory().createEntityManager();
+            function.beforeTransactionCompletion();
+            txn = entityManager.getTransaction();
+            txn.begin();
+            result = function.apply(entityManager);
+            if ( !txn.getRollbackOnly() ) {
+                txn.commit();
+            }
+            else {
+                try {
+                    txn.rollback();
+                }
+                catch (Exception e) {
+                    LOGGER.error( "Rollback failure", e );
+                }
+            }
+        } catch (Throwable t) {
+            if ( txn != null && txn.isActive() ) {
+                try {
+                    txn.rollback();
+                }
+                catch (Exception e) {
+                    LOGGER.error( "Rollback failure", e );
+                }
+            }
+            throw t;
+        } finally {
+            function.afterTransactionCompletion();
+            if (entityManager != null) {
+                entityManager.close();
+            }
+        }
+        return result;
     }
 
     protected void executeSync(VoidCallable callable) {
