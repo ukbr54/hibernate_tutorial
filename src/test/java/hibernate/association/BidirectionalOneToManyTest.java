@@ -21,7 +21,7 @@ import java.util.Objects;
  *
  *    MappedBy -  To make this association bidirectional, all we'll have to do is to define the referencing side. The inverse or the
  *    referencing side simply maps to the owning side.
- *    
+ *
  *    @JoinColumn - the owing side is usually defined on the "many" side of the relationship.It's usually the side which owns the
  *    foreign key.
  *
@@ -60,19 +60,10 @@ public class BidirectionalOneToManyTest extends AbstractTest {
         });
 
         doInJPA(entityManager -> {
-            Post post = new Post("My Second Post");
-            entityManager.persist(post);
+            Post post = entityManager.find(Post.class, 1L);
+            PostComment comment = post.getComments().get(0);
 
-            PostComment comment1 = new PostComment("My first review");
-            post.addComment(comment1);
-            PostComment comment2 = new PostComment("My second review");
-            post.addComment(comment2);
-
-            entityManager.persist(post);
-            entityManager.flush();
-
-            post.removeComment(comment1);
-            entityManager.flush();
+            post.removeComment(comment);
         });
     }
 
@@ -134,7 +125,7 @@ public class BidirectionalOneToManyTest extends AbstractTest {
             if (this == o) return true;
             if (o == null || getClass() != o.getClass()) return false;
             PostComment that = (PostComment) o;
-            return Objects.equals(id, that.id) ;
+            return id.equals(that.id);
         }
 
         @Override
