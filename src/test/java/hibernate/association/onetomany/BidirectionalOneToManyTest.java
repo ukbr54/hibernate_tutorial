@@ -1,4 +1,4 @@
-package hibernate.association;
+package hibernate.association.onetomany;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;
