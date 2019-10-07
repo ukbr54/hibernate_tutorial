@@ -139,7 +139,7 @@ public class MySQLDataSourceProvider implements DataSourceProvider{
 
     @Override
     public String password() {
-        return "test";
+        return "root";
     }
 
     @Override
