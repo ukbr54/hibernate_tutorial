@@ -14,19 +14,18 @@ import java.io.Serializable;
 import java.util.*;
 
 /**
- * Created by Ujjwal Gupta on Sep,2019
+ * Created by Ujjwal Gupta on Oct,2019
  */
 
 /**
- * In this configuration while removing the tag from the post. It will iterate all the tag available in the post.
- *  Refer Blog: https://vladmihalcea.com/the-best-way-to-map-a-many-to-many-association-with-extra-columns-when-using-jpa-and-hibernate/
- *
+ * When mapping the intermediary join table, it’s better to map only one side as a bidirectional @OneToMany association since
+ * otherwise a second SELECT statement will be issued while removing the intermediary join entity.
  */
-public class BidirectionalManyToManyExtraColumnsTest extends AbstractTest {
+public class UnidirectionalManyAsOneToManyExtraColumnsTest extends AbstractTest {
 
     @Override
     protected Class<?>[] entities() {
-        return new Class[]{
+        return new Class<?>[]{
                 Post.class,
                 Tag.class,
                 PostTag.class
@@ -34,7 +33,8 @@ public class BidirectionalManyToManyExtraColumnsTest extends AbstractTest {
     }
 
     @Test
-    public void testLifeCycle(){
+    public void testLifecycle() {
+
         doInJPA(entityManager -> {
             Tag misc = new Tag("Misc");
             Tag jdbc = new Tag("JDBC");
@@ -48,61 +48,48 @@ public class BidirectionalManyToManyExtraColumnsTest extends AbstractTest {
         });
 
         doInJPA(entityManager -> {
-            Session session = entityManager.unwrap(Session.class);
+            Session session = entityManager.unwrap( Session.class );
 
-            /**
-             *
-             * @NaturalId generating two SELECT statement
-             * The first SQL SELECT statement is for resolving the entity identifier based on the provided natural identifier
-             * as explained by the associated SQL comment.
-             *
-             * The second query is for fetching the Book entity based on the resolved entity identifier.
-             */
-            Tag misc = session.bySimpleNaturalId(Tag.class).load("Misc");
+            Tag misc = session.bySimpleNaturalId(Tag.class).load( "Misc" );
             Tag jdbc = session.bySimpleNaturalId(Tag.class).load( "JDBC" );
             Tag hibernate = session.bySimpleNaturalId(Tag.class).load( "Hibernate" );
             Tag jooq = session.bySimpleNaturalId(Tag.class).load( "jOOQ" );
 
-            Post post1 = new Post("High-Performance Java Persistence 1st edition");
-            post1.setId(1L);
-            post1.addTag(jdbc);
-            post1.addTag(hibernate);
-            post1.addTag(jooq);
-            post1.addTag(misc);
+            Post hpjp1 = new Post("High-Performance Java Persistence 1st edition");
+            hpjp1.setId(1L);
 
-            entityManager.persist(post1);
+            hpjp1.addTag(jdbc);
+            hpjp1.addTag(hibernate);
+            hpjp1.addTag(jooq);
+            hpjp1.addTag(misc);
 
-            Post post2 = new Post("High-Performance Java Persistence 2nd edition");
-            post2.setId(2L);
+            entityManager.persist(hpjp1);
 
-            post2.addTag(jdbc);
-            post2.addTag(hibernate);
-            post2.addTag(jooq);
+            Post hpjp2 = new Post("High-Performance Java Persistence 2nd edition");
+            hpjp2.setId(2L);
 
-            entityManager.persist(post2);
+            hpjp2.addTag(jdbc);
+            hpjp2.addTag(hibernate);
+            hpjp2.addTag(jooq);
+
+            entityManager.persist(hpjp2);
         });
 
         doInJPA(entityManager -> {
-            /**
-             *   2 SELECT QUERY
-             *   -> 1 Select Query resolving the entity identifier
-             *   -> 1 Select Query with resolved entity identifier
-             */
-
-            Tag misc = entityManager.unwrap(Session.class).bySimpleNaturalId(Tag.class).load("Misc");
+            Tag misc = entityManager.unwrap( Session.class )
+                    .bySimpleNaturalId(Tag.class)
+                    .load( "Misc" );
 
             Post post = entityManager.createQuery(
-                    "SELECT p FROM Post p " +
-                       "JOIN FETCH p.tags pt " +
-                       "JOIN FETCH pt.tag " +
-                       " WHERE p.id = :postId", Post.class
-            ).setParameter("postId", 1L)
-             .getSingleResult();
+                    "select p " +
+                            "from Post p " +
+                            "join fetch p.tags pt " +
+                            "join fetch pt.tag " +
+                            "where p.id = :postId", Post.class)
+                    .setParameter( "postId", 1L )
+                    .getSingleResult();
 
-            //1 SELECT QUERY - query is needed by this line in the removeTag utility method
-            // postTag.getTag().getPosts().remove(postTag)
-            post.removeTag(misc);
-
+            post.removeTag( misc );
         });
     }
 
@@ -128,15 +115,13 @@ public class BidirectionalManyToManyExtraColumnsTest extends AbstractTest {
         public void addTag(Tag tag){
             PostTag postTag = new PostTag(this,tag);
             tags.add(postTag);
-            tag.getPosts().add(postTag);
         }
 
         public void removeTag(Tag tag){
-            for(Iterator<PostTag> iterator = tags.iterator();iterator.hasNext();){
+            for(Iterator<PostTag> iterator = tags.iterator(); iterator.hasNext();){
                 PostTag postTag = iterator.next();
                 if(postTag.getPost().equals(this) && postTag.getTag().equals(tag)){
                     iterator.remove();
-                    postTag.getTag().getPosts().remove(postTag);
                     postTag.setPost(null);
                     postTag.setTag(null);
                 }
@@ -185,7 +170,6 @@ public class BidirectionalManyToManyExtraColumnsTest extends AbstractTest {
         }
     }
 
-
     @Setter
     @Getter
     @NoArgsConstructor
@@ -196,12 +180,12 @@ public class BidirectionalManyToManyExtraColumnsTest extends AbstractTest {
         @EmbeddedId
         private PostTagId id;
 
-        @ManyToOne(fetch = FetchType.LAZY)
         @MapsId("postId")
+        @ManyToOne(fetch = FetchType.LAZY)
         private Post post;
 
-        @ManyToOne(fetch = FetchType.LAZY)
         @MapsId("tagId")
+        @ManyToOne(fetch = FetchType.LAZY)
         private Tag tag;
 
         @Column(name = "created_on")
@@ -241,9 +225,6 @@ public class BidirectionalManyToManyExtraColumnsTest extends AbstractTest {
 
         @NaturalId
         private String name;
-
-        @OneToMany(mappedBy = "tag",cascade = CascadeType.ALL,orphanRemoval = true)
-        private List<PostTag> posts = new ArrayList<>();
 
         public Tag(String name) {
             this.name = name;
